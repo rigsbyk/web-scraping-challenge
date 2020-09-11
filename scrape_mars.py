@@ -3,6 +3,7 @@ from splinter import Browser
 from bs4 import BeautifulSoup as bs
 import time
 import pandas as pd
+import requests
 
 
 def init_browser():
@@ -35,7 +36,7 @@ def scrape_info():
     teaser_p = news_element.find('div', class_='article_teaser_body').get_text()
     teaser_p
 
-    # ----JPL Mars Space Images - Featured Image----
+    # ----JPL MARS SPACE IMAGES - FEATURED IMAGE----
     
     # Directs to open to https://mars.nasa.gov/news
     image_url = 'https://www.jpl.nasa.gov/spaceimages/?search=&category=Mars'
@@ -49,7 +50,7 @@ def scrape_info():
 
     # Clicking through to find full-featured url
     html2 = browser.html
-    main_image_soup = BeautifulSoup(html2, 'html.parser')
+    main_image_soup = bs(html2, 'html.parser')
     main_image_url = main_image_soup.select_one('figure.lede a img').get('src')
 
     # Get main image url
@@ -62,11 +63,72 @@ def scrape_info():
     # Full-featured url
     final_main_image
 
+    # ----MARS FACTS----
+
+    # Pulling data from this url
+    url = 'https://space-facts.com/mars/'
+
+    # Reading the HTML tables into a list of tables 
+    tables = pd.read_html(url)
+    tables
+
+    # Pulling the first table listed and creating column names
+    df = tables[0]
+    df.columns = ['Description','Value']
+    df
+
+    # Set index to Description
+    df.set_index('Description',inplace=True)
+
+    # Display the new dataframe
+    df
+
+    # Generate new table to html
+    # Stripping unwanted new lines
+    mars_facts = df.to_html()
+    mars_facts.replace('\n', '')
+
+    # ----MARS HEMISPHERE----
+    hemisphere_url = 'https://astrogeology.usgs.gov/search/results?q=hemisphere+enhanced&k1=target&v1=Mars'
+    browser.visit(hemisphere_url)
+    html_hemis = browser.html
+
+    #Parse
+    soup_hemis = bs(html_hemis, 'html.parser')
+    urls_hemis =  soup_hemis.find_all('div', class_ = 'item')
+
+    # Loop through astrogeology.usgs.gov to find urls and titles
+    hemis_output = []
+    core_url = "https://astrogeology.usgs.gov"
+    for mh in urls_hemis:
+        #Store the title
+        title = mh.find('h3').text
+    
+        #look for the image
+        temp_image = mh.find('a', class_ = 'itemLink product-item')['href']
+        browser.visit(core_url + temp_image)
+
+        #convert to html object
+        temp_image_html = browser.html
+        #parse it
+        soup_hemis2 = bs(temp_image_html, 'html.parser')
+
+        #scrape it
+        full_image = core_url + soup_hemis2.find('img', class_='wide-image')['src']
+    
+        #create a dic and append to list
+        hemis_output.append({"title":title, "image_url": full_image})
+    
+    # Get hemis_output
+    hemis_output
+
     # Store data in a dictionary
     mars_data = {
           "News Title:":titles,
           "News Teaser:":teaser_p,
-          "Full Featured Image:":final_main_image
+          "Full Featured Image:":final_main_image,
+          "Mars Facts:":mars_facts,
+          "Hemisphere Output:":hemis_output
     }
 
     # Close the browser after scraping

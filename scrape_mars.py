@@ -15,32 +15,64 @@ def init_browser():
 def scrape_info():
     browser = init_browser()
 
+    # Store data in a dictionary
+    # Create a scrape_news dict that we can insert into mongoDB
+    mars_dict = {}
+
+    # Run the first function
+    titles, teaser_p = scrape_news()
+   
+    # Run all functions and store in a dictionary
+    mars_dict["title"] = titles
+    mars_dict["paragraph"] = teaser_p 
+    mars_dict["main_image"] = scrape_mars_images()
+    mars_dict["mars_facts"] = mars_facts()
+    mars_dict["mars_hemispheres"] = mars_hemis() 
+
+    browser.quit()
+    return mars_dict
+
+def scrape_news():
+
+    browser = init_browser()
+
     # ----VISIT MARS NEWS SITE----
 
     # Visit mars.nasa.gov/news
     url = "https://mars.nasa.gov/news"
     browser.visit(url)
+    
+    time.sleep(1)
 
     # Scrape page into Soup
     html = browser.html
     soup = bs(html, "html.parser")
 
+    try:
     # Get the news title of the first post
-    news_element = soup.select_one('ul.item_list li.slide')
-    titles = news_element.find('div', class_ = 'content_title').get_text()
-
-    # Get Title
-    titles
+        news_element = soup.select_one('ul.item_list li.slide')
+        titles = news_element.find('div', class_ = 'content_title').get_text()
 
     # Grab coordinating teaser paragraph
-    teaser_p = news_element.find('div', class_='article_teaser_body').get_text()
-    teaser_p
+        teaser_p = news_element.find('div', class_='article_teaser_body').get_text()
+
+    except AttributeError:
+        return None, None
+
+    browser.quit()
+
+    return titles, teaser_p
+
+def scrape_mars_images():
+
+    browser = init_browser()
 
     # ----JPL MARS SPACE IMAGES - FEATURED IMAGE----
     
     # Directs to open to https://mars.nasa.gov/news
     image_url = 'https://www.jpl.nasa.gov/spaceimages/?search=&category=Mars'
     browser.visit(image_url)
+    time.sleep(1)
 
     # Clicking through to find full-featured url
     browser.find_by_id('full_image').click()
@@ -60,11 +92,13 @@ def scrape_info():
     main_url = "https://www.jpl.nasa.gov"
     final_main_image = main_url + main_image_url
 
-    # Full-featured url
-    final_main_image
+    browser.quit()
+    return final_main_image
 
     # ----MARS FACTS----
+def mars_facts():
 
+    browser = init_browser()
     # Pulling data from this url
     url = 'https://space-facts.com/mars/'
 
@@ -74,7 +108,7 @@ def scrape_info():
 
     # Pulling the first table listed and creating column names
     df = tables[0]
-    df.columns = ['Description','Value']
+    df.columns = ['Description','Mars']
     df
 
     # Set index to Description
@@ -88,6 +122,13 @@ def scrape_info():
     mars_facts = df.to_html()
     mars_facts.replace('\n', '')
 
+    browser.quit()
+
+    return mars_facts
+
+def mars_hemis():
+
+    browser = init_browser()
     # ----MARS HEMISPHERE----
     hemisphere_url = 'https://astrogeology.usgs.gov/search/results?q=hemisphere+enhanced&k1=target&v1=Mars'
     browser.visit(hemisphere_url)
@@ -120,19 +161,5 @@ def scrape_info():
         hemis_output.append({"title":title, "image_url": full_image})
     
     # Get hemis_output
-    hemis_output
-
-    # Store data in a dictionary
-    mars_data = {
-          "News Title:":titles,
-          "News Teaser:":teaser_p,
-          "Full Featured Image:":final_main_image,
-          "Mars Facts:":mars_facts,
-          "Hemisphere Output:":hemis_output
-    }
-
-    # Close the browser after scraping
     browser.quit()
-
-    # Return results
-    return mars_data
+    return hemis_output
